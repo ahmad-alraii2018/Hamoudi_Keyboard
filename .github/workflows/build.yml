@@ -1,0 +1,62 @@
+name: Ultimate Hamoudi Keyboard Pure APK Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository Source Code
+      uses: actions/checkout@v4
+
+    - name: Smart Unzip Native Keyboard Project
+      run: |
+        unzip -q Hamoudi_Final_Pure.zip || unzip -q *.zip || true
+
+    - name: Set up Java JDK 17 Environment
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Set up Android SDK & Android Build Tools
+      uses: android-actions/setup-android@v3
+
+    - name: Setup Gradle Project Environment
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Grant Execute Permission to Gradle Wrapper
+      run: |
+        if [ -f "gradlew" ]; then
+          chmod +x gradlew
+        else
+          gradle wrapper --gradle-version 8.4
+          chmod +x gradlew
+        fi
+
+    - name: Generate Official Production Signing Keystore
+      run: |
+        keytool -genkey -v -keystore hamoudi.keystore -alias hamoudi_alias -keyalg RSA -keysize 2048 -validity 10000 -storepass hamoudi2026 -keypass hamoudi2026 -dname "CN=HamoudiKeyboard, OU=Dev, O=Prince, L=Latakia, S=Syria, C=SY"
+
+    - name: Compile and Build Official Signed Native APK
+      run: |
+        ./gradlew assembleRelease
+        
+    - name: Inject Production Signatures to Finished Package
+      run: |
+        APK_PATH=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+        if [ -n "$APK_PATH" ]; then
+          mv "$APK_PATH" app/build/outputs/apk/release/hamoudi-release-unsigned.apk
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore hamoudi.keystore -storepass hamoudi2026 -keypass hamoudi2026 app/build/outputs/apk/release/hamoudi-release-unsigned.apk hamoudi_alias
+          mv app/build/outputs/apk/release/hamoudi-release-unsigned.apk app/build/outputs/apk/release/hamoudi-keyboard-final.apk
+        fi
+
+    - name: Upload Finished Signed APK to Cloud Storage
+      uses: actions/upload-artifact@v4
+      with:
+        name: hamoudi-keyboard-final-apk
+        path: app/build/outputs/apk/release/hamoudi-keyboard-final.apk
