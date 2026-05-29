@@ -16,6 +16,8 @@ jobs:
     - name: Smart Unzip Native Keyboard Project
       run: |
         unzip -q Hamoudi_Final_Pure.zip || unzip -q *.zip || true
+        # إذا الملفات بمجلد فرعي، انقلها لـ root
+        if [ -d "HamoudiKeyboard" ]; then mv HamoudiKeyboard/* . && mv HamoudiKeyboard/.* . 2>/dev/null || true; fi
 
     - name: Set up Java JDK 17 Environment
       uses: actions/setup-java@v4
@@ -34,7 +36,7 @@ jobs:
         if [ -f "gradlew" ]; then
           chmod +x gradlew
         else
-          gradle wrapper --gradle-version 8.4
+          gradle wrapper --gradle-version 8.7
           chmod +x gradlew
         fi
 
